@@ -90,7 +90,7 @@ def init_db():
     conn.close()
     print("Database 'users.db' initialized.")
 
-    init_db() 
+init_db() 
 
 # ======================================================================
 # --- WHATSAPP & CORE LOGIC FUNCTIONS ---
