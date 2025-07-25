@@ -26,6 +26,8 @@ FLOW_ID = os.getenv("FLOW_ID", "YOUR_FLOW_ID") # Add your Flow ID to your .env f
 user_states = {}
 AUTO_ALLOCATOR_ENABLED = True
 
+
+
 # ======================================================================
 # --- DATABASE FUNCTIONS ---
 # ======================================================================
@@ -87,6 +89,8 @@ def init_db():
     conn.commit()
     conn.close()
     print("Database 'users.db' initialized.")
+
+    init_db() 
 
 # ======================================================================
 # --- WHATSAPP & CORE LOGIC FUNCTIONS ---
@@ -511,5 +515,6 @@ def seat_manually():
     return redirect(url_for('admin_dashboard'))
 
 if __name__ == "__main__":
-    init_db()
+    # This block is now only for local development purposes if you run 'python app.py'
+    # On Render, Gunicorn will start the app and init_db() will already have been called.
     app.run(host='0.0.0.0', port=5000, debug=True)
