@@ -98,6 +98,9 @@ def init_db():
     conn.close()
     print("Database 'users.db' initialized with history table.")
 
+
+init_db()
+
 # ======================================================================
 # --- WHATSAPP & CORE LOGIC FUNCTIONS ---
 # ======================================================================
@@ -620,5 +623,4 @@ def admin_history():
 
 
 if __name__ == "__main__":
-    init_db()
     app.run(host='0.0.0.0', port=5000, debug=True)
