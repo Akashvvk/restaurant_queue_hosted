@@ -37,7 +37,6 @@
             align-items: start;
         }
         
-        /* MODIFIED: main-content is now a two-column grid */
         .main-content {
             display: grid;
             grid-template-columns: 2fr 1.5fr;
@@ -45,7 +44,6 @@
             align-items: start;
         }
 
-        /* NEW: A wrapper for vertically stacked cards */
         .content-column {
             display: grid;
             gap: 24px;
@@ -202,6 +200,25 @@
         .manual-seat-form label { font-weight: 500; font-size: 0.9rem; }
         .manual-seat-form select { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; background-color: #fff; }
 
+        .manual-seat-form input[type="text"],
+        .manual-seat-form input[type="number"],
+        .manual-seat-form input[type="tel"] {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            box-sizing: border-box;
+            background-color: #fff;
+            transition: border-color 0.2s;
+        }
+
+        .manual-seat-form input[type="text"]:focus,
+        .manual-seat-form input[type="number"]:focus,
+        .manual-seat-form input[type="tel"]:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        }
         @media (max-width: 1300px) {
             .main-content {
                 grid-template-columns: 1fr;
@@ -211,9 +228,47 @@
             .dashboard-container { grid-template-columns: 1fr; }
             .sidebar { position: static; }
         }
+        
+        /* New styling for flash messages */
+        .flash-messages {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .flash {
+            padding: 12px 20px;
+            margin-bottom: 12px;
+            border-radius: 8px;
+            font-weight: 500;
+            color: #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .flash.success {
+            background-color: var(--success-color);
+        }
+
+        .flash.error {
+            background-color: var(--danger-color);
+        }
     </style>
 </head>
 <body>
+
+    <div class="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
 
     <div class="dashboard-container">
         <div class="main-content">
@@ -323,6 +378,29 @@
         </div>
 
         <div class="sidebar">
+            
+            <div class="card">
+                <h2>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
+                    <span>Add New Customer</span>
+                </h2>
+                <form action="{{ url_for('add_customer') }}" method="post" class="manual-seat-form">
+                    <div>
+                        <label for="new_customer_name">Name:</label>
+                        <input type="text" id="new_customer_name" name="name" required>
+                    </div>
+                    <div>
+                        <label for="new_people_count">Party Size:</label>
+                        <input type="number" id="new_people_count" name="people_count" min="1" required>
+                    </div>
+                    <div>
+                        <label for="new_phone_number">Phone Number:</label>
+                        <input type="tel" id="new_phone_number" name="phone_number" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">Add to Queue</button>
+                </form>
+            </div>
+            
             <div class="card">
                 <h2>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/> <path fill-rule="evenodd" d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5"/></svg>
@@ -410,3 +488,4 @@
 </script>
 
 </body>
+</html>
