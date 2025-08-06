@@ -86,11 +86,16 @@ def init_db():
 
     conn.commit()
 
-    initial_tables_config = [
-        ("T1", 2), ("T2", 2), ("T3", 2), ("T4", 2),
-        ("T5", 4), ("T6", 4), ("T7", 4), ("T8", 4),
-        ("T9", 6), ("T10", 6)
-    ]
+    initial_tables_config = []
+    # 9 two-seater tables
+    for i in range(1, 10):
+        initial_tables_config.append((f"T{i}", 2))
+    # 29 four-seater tables
+    for i in range(10, 39):
+        initial_tables_config.append((f"T{i}", 4))
+    # 8 six-seater tables
+    for i in range(39, 47):
+        initial_tables_config.append((f"T{i}", 6))
     for table_num, capacity in initial_tables_config:
         cursor.execute("INSERT OR IGNORE INTO tables (table_number, capacity, status) VALUES (?, ?, 'free')", (table_num, capacity))
     
