@@ -31,29 +31,25 @@
 
         .dashboard-container {
             display: grid;
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: 1fr 1.5fr 1fr;
+            grid-template-rows: auto auto auto;
             gap: 24px;
             padding: 24px;
-            align-items: start;
+            grid-template-areas:
+                "add-customer   waiting-queue   sidebar"
+                "table-status   table-status    table-status"
+                "occupied-tables occupied-tables occupied-tables";
         }
         
-        .main-content {
-            display: grid;
-            grid-template-columns: 2fr 1.5fr;
-            gap: 24px;
-            align-items: start;
-        }
-
-        .content-column {
-            display: grid;
-            gap: 24px;
-        }
+        .grid-area-add-customer { grid-area: add-customer; }
+        .grid-area-waiting-queue { grid-area: waiting-queue; }
+        .grid-area-sidebar { grid-area: sidebar; }
+        .grid-area-table-status { grid-area: table-status; }
+        .grid-area-occupied-tables { grid-area: occupied-tables; }
 
         .sidebar {
             display: grid;
             gap: 24px;
-            position: sticky;
-            top: 24px;
         }
 
         .card {
@@ -65,6 +61,9 @@
             border: 1px solid var(--card-border);
             padding: 24px;
             overflow-x: auto;
+            height: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .card h2 {
@@ -84,6 +83,15 @@
             width: 24px;
             height: 24px;
         }
+
+        /* MODIFICATION START: Dynamic height for Waiting Queue scroll container */
+        .table-scroll-container {
+            flex-grow: 1; /* Allow the container to grow to fill the parent card */
+            overflow-y: auto; /* Add scroll only when content overflows */
+            border-radius: 8px;
+            min-height: 150px; /* Optional: set a minimum height */
+        }
+        /* MODIFICATION END */
 
         table {
             width: 100%;
@@ -165,7 +173,7 @@
 
         .table-status-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Increased min-width slightly */
             gap: 12px;
         }
         .table-box {
@@ -174,6 +182,9 @@
             text-align: center;
             transition: transform 0.2s;
             border: 2px solid transparent;
+            display: flex; /* Using flexbox for better alignment */
+            flex-direction: column;
+            justify-content: center;
         }
         .table-box:hover { transform: translateY(-3px); }
         .table-box h3 { margin: 0 0 5px 0; font-size: 1rem; font-weight: 600; }
@@ -189,6 +200,21 @@
         
         .table-box.free { background-color: #f8fff9; border-color: var(--success-color); }
         .table-box.free .status { color: var(--success-color); }
+        
+        /* MODIFICATION START: New styles for customer name and form on table box */
+        .table-box .customer-name {
+            font-weight: 500;
+            color: var(--text-color);
+            margin: 8px 0;
+            font-size: 0.85rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .free-table-form {
+            margin-top: 8px;
+        }
+        /* MODIFICATION END */
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
@@ -219,17 +245,19 @@
             border-color: var(--primary-color);
             box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
         }
-        @media (max-width: 1300px) {
-            .main-content {
+        
+        @media (max-width: 1200px) {
+            .dashboard-container {
                 grid-template-columns: 1fr;
+                grid-template-areas:
+                    "add-customer"
+                    "waiting-queue"
+                    "sidebar"
+                    "table-status"
+                    "occupied-tables";
             }
         }
-        @media (max-width: 1200px) {
-            .dashboard-container { grid-template-columns: 1fr; }
-            .sidebar { position: static; }
-        }
         
-        /* New styling for flash messages */
         .flash-messages {
             position: fixed;
             top: 20px;
@@ -249,13 +277,8 @@
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
 
-        .flash.success {
-            background-color: var(--success-color);
-        }
-
-        .flash.error {
-            background-color: var(--danger-color);
-        }
+        .flash.success { background-color: var(--success-color); }
+        .flash.error { background-color: var(--danger-color); }
     </style>
 </head>
 <body>
@@ -271,136 +294,70 @@
     </div>
 
     <div class="dashboard-container">
-        <div class="main-content">
-            <div class="content-column">
-                <div class="card">
-                    <h2>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>
-                        <span>Waiting Queue ({{ customers|length }})</span>
-                    </h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th># People</th>
-                                <th>Wait Time</th>
-                                <th>Phone</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for customer in customers %}
-                            <tr>
-                                <td>{{ customer.name }}</td>
-                                <td>{{ customer.people_count }}</td>
-                                <td class="wait-time" data-timestamp="{{ customer.timestamp }}">Calculating...</td>
-                                <td>{{ customer.phone_number }}</td>
-                                <td>
-                                    <form action="{{ url_for('remove_customer') }}" method="post">
-                                        <input type="hidden" name="customer_id" value="{{ customer.id }}">
-                                        <button type="submit" class="btn btn-danger btn-sm">Remove</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="5" class="empty-state">The waiting queue is empty.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
 
-                <div class="card">
-                    <h2>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M15 14s1 0 1-1-1-4-6-4-6 3-6 4 1 1 1 1zm-7.978-1L7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002-.014.002H15a1 1 0 0 0 1-1 1 1 0 0 0-1-1H2a1 1 0 0 0-1 1 1 1 0 0 0 1 1zM11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/></svg>
-                        <span>Occupied Tables ({{ occupied_tables|length }})</span>
-                    </h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Table</th>
-                                <th>Customer Name</th>
-                                <th>Party Size</th>
-                                <th>Phone</th>
-                                <th>Seated At</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for seating in occupied_tables %}
-                            <tr>
-                                <td><strong>{{ seating.table_number }}</strong></td>
-                                <td>{{ seating.customer_name }}</td>
-                                <td>{{ seating.people_count }}</td>
-                                <td>{{ seating.customer_phone_number }}</td>
-                                <td>
-                                    {% if seating.occupied_timestamp %}
-                                        {{ seating.occupied_timestamp.strftime('%I:%M %p') }}
-                                    {% else %}
-                                        N/A
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <form action="{{ url_for('free_table') }}" method="post">
-                                        <input type="hidden" name="table_number" value="{{ seating.table_number }}">
-                                        <button type="submit" class="btn btn-warning btn-sm">Mark as Free</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% else %}
-                            <tr>
-                                <td colspan="6" class="empty-state">No tables are currently occupied.</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+        <div class="card grid-area-add-customer">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
+                <span>Add New Customer</span>
+            </h2>
+            <form action="{{ url_for('add_customer') }}" method="post" class="manual-seat-form">
+                <div>
+                    <label for="new_customer_name">Name:</label>
+                    <input type="text" id="new_customer_name" name="name" required>
                 </div>
-            </div>
+                <div>
+                    <label for="new_people_count">Party Size:</label>
+                    <input type="number" id="new_people_count" name="people_count" min="1" required>
+                </div>
+                <div>
+                    <label for="new_phone_number">Phone Number:</label>
+                    <input type="tel" id="new_phone_number" name="phone_number" required>
+                </div>
+                <button type="submit" class="btn btn-success">Add to Queue</button>
+            </form>
+        </div>
 
-            <div class="content-column">
-                <div class="card">
-                    <h2>
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M1.5 0A1.5 1.5 0 0 0 0 1.5v2A1.5 1.5 0 0 0 1.5 5h2A1.5 1.5 0 0 0 5 3.5v-2A1.5 1.5 0 0 0 3.5 0zM1 1.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM1.5 7A1.5 1.5 0 0 0 0 8.5v2A1.5 1.5 0 0 0 1.5 12h2A1.5 1.5 0 0 0 5 10.5v-2A1.5 1.5 0 0 0 3.5 7zM1 8.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM7 1.5A1.5 1.5 0 0 0 5.5 3h2A1.5 1.5 0 0 0 9 1.5v-2A1.5 1.5 0 0 0 7.5 0h-2A1.5 1.5 0 0 0 4 1.5zM7 1a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM6.5 7A1.5 1.5 0 0 0 5 8.5v2A1.5 1.5 0 0 0 6.5 12h2A1.5 1.5 0 0 0 10 10.5v-2A1.5 1.5 0 0 0 8.5 7zM6 8.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM12.5 0A1.5 1.5 0 0 0 11 1.5v2A1.5 1.5 0 0 0 12.5 5h2A1.5 1.5 0 0 0 16 3.5v-2A1.5 1.5 0 0 0 14.5 0zM12 1.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM11.5 7A1.5 1.5 0 0 0 10 8.5v2A1.5 1.5 0 0 0 11.5 12h2A1.5 1.5 0 0 0 15 10.5v-2A1.5 1.5 0 0 0 13.5 7zM11 8.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5z"/></svg>
-                        <span>Table Status</span>
-                    </h2>
-                    <div class="table-status-grid">
-                        {% for table in all_tables %}
-                        <div class="table-box {{ 'occupied' if table.status == 'occupied' else 'free' }}">
-                            <h3>{{ table.table_number }}</h3>
-                            <p>Cap: {{ table.capacity }}</p>
-                            <p class="status"><strong>{{ table.status }}</strong></p>
-                        </div>
+        <div class="card grid-area-waiting-queue">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/></svg>
+                <span>Waiting Queue ({{ customers|length }})</span>
+            </h2>
+            <div class="table-scroll-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th># People</th>
+                            <th>Wait Time</th>
+                            <th>Phone</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for customer in customers %}
+                        <tr>
+                            <td>{{ customer.name }}</td>
+                            <td>{{ customer.people_count }}</td>
+                            <td class="wait-time" data-timestamp="{{ customer.timestamp }}">Calculating...</td>
+                            <td>{{ customer.phone_number }}</td>
+                            <td>
+                                <form action="{{ url_for('remove_customer') }}" method="post">
+                                    <input type="hidden" name="customer_id" value="{{ customer.id }}">
+                                    <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="empty-state">The waiting queue is empty.</td>
+                        </tr>
                         {% endfor %}
-                    </div>
-                </div>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <div class="sidebar">
-            
-            <div class="card">
-                <h2>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M14 1a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h12zM2 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2H2z"/><path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/></svg>
-                    <span>Add New Customer</span>
-                </h2>
-                <form action="{{ url_for('add_customer') }}" method="post" class="manual-seat-form">
-                    <div>
-                        <label for="new_customer_name">Name:</label>
-                        <input type="text" id="new_customer_name" name="name" required>
-                    </div>
-                    <div>
-                        <label for="new_people_count">Party Size:</label>
-                        <input type="number" id="new_people_count" name="people_count" min="1" required>
-                    </div>
-                    <div>
-                        <label for="new_phone_number">Phone Number:</label>
-                        <input type="tel" id="new_phone_number" name="phone_number" required>
-                    </div>
-                    <button type="submit" class="btn btn-success">Add to Queue</button>
-                </form>
-            </div>
-            
+        <div class="sidebar grid-area-sidebar">
             <div class="card">
                 <h2>
                     <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M1 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/> <path fill-rule="evenodd" d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5"/></svg>
@@ -436,7 +393,7 @@
                 </h2>
                 <div class="controls-grid">
                     <div class="control-item">
-                        <span>Auto-Allocator Status</span>
+                        <span>Auto-Allocator</span>
                         <form action="{{ url_for('toggle_auto_allocator') }}" method="post" id="toggle-form">
                             <input type="hidden" name="current_status" value="{{ auto_allocator_status }}">
                             <label class="switch">
@@ -446,7 +403,7 @@
                         </form>
                     </div>
                     <div class="control-item">
-                        <span>Manual Allocation</span>
+                        <span>Run Allocator</span>
                         <form action="{{ url_for('run_auto_seat') }}" method="post">
                             <button type="submit" class="btn">Run Now</button>
                         </form>
@@ -454,9 +411,72 @@
                 </div>
             </div>
         </div>
-    </div>
 
-<script>
+        <div class="card grid-area-table-status">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M1.5 0A1.5 1.5 0 0 0 0 1.5v2A1.5 1.5 0 0 0 1.5 5h2A1.5 1.5 0 0 0 5 3.5v-2A1.5 1.5 0 0 0 3.5 0zM1 1.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM1.5 7A1.5 1.5 0 0 0 0 8.5v2A1.5 1.5 0 0 0 1.5 12h2A1.5 1.5 0 0 0 5 10.5v-2A1.5 1.5 0 0 0 3.5 7zM1 8.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM7 1.5A1.5 1.5 0 0 0 5.5 3h2A1.5 1.5 0 0 0 9 1.5v-2A1.5 1.5 0 0 0 7.5 0h-2A1.5 1.5 0 0 0 4 1.5zM7 1a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM6.5 7A1.5 1.5 0 0 0 5 8.5v2A1.5 1.5 0 0 0 6.5 12h2A1.5 1.5 0 0 0 10 10.5v-2A1.5 1.5 0 0 0 8.5 7zM6 8.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM12.5 0A1.5 1.5 0 0 0 11 1.5v2A1.5 1.5 0 0 0 12.5 5h2A1.5 1.5 0 0 0 16 3.5v-2A1.5 1.5 0 0 0 14.5 0zM12 1.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5zM11.5 7A1.5 1.5 0 0 0 10 8.5v2A1.5 1.5 0 0 0 11.5 12h2A1.5 1.5 0 0 0 15 10.5v-2A1.5 1.5 0 0 0 13.5 7zM11 8.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5z"/></svg>
+                <span>Table Status</span>
+            </h2>
+            <div class="table-status-grid">
+                {% for table in all_tables %}
+                <div class="table-box {{ 'occupied' if table.status == 'occupied' else 'free' }}">
+                    <h3>{{ table.table_number }}</h3>
+                    <p>Cap: {{ table.capacity }}</p>
+                    <p class="status"><strong>{{ table.status }}</strong></p>
+
+                    {% if table.status == 'occupied' %}
+                        <p class="customer-name" title="{{ table.customer_name }}">{{ table.customer_name }}</p>
+                        <form action="{{ url_for('free_table') }}" method="post" class="free-table-form">
+                            <input type="hidden" name="table_number" value="{{ table.table_number }}">
+                            <button type="submit" class="btn btn-warning btn-sm">Mark Free</button>
+                        </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                </div>
+        </div>
+
+        <div class="card grid-area-occupied-tables">
+            <h2>
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 16 16"><path d="M15 14s1 0 1-1-1-4-6-4-6 3-6 4 1 1 1 1zm-7.978-1L7 12.996c.001-.264.167-1.03.76-1.72C8.312 10.629 9.282 10 11 10c1.717 0 2.687.63 3.24 1.276.593.69.758 1.457.76 1.72l-.008.002-.014.002H15a1 1 0 0 0 1-1 1 1 0 0 0-1-1H2a1 1 0 0 0-1 1 1 1 0 0 0 1 1zM11 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0M8 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4"/></svg>
+                <span>Occupied Tables ({{ occupied_tables|length }})</span>
+            </h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Customer Name</th>
+                        <th>Party Size</th>
+                        <th>Phone</th>
+                        <th>Seated At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for seating in occupied_tables %}
+                    <tr>
+                        <td><strong>{{ seating.table_number }}</strong></td>
+                        <td>{{ seating.customer_name }}</td>
+                        <td>{{ seating.people_count }}</td>
+                        <td>{{ seating.customer_phone_number }}</td>
+                        <td>
+                            {% if seating.occupied_timestamp %}
+                                {{ seating.occupied_timestamp.strftime('%I:%M %p') }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="empty-state">No tables are currently occupied.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+
+    </div>
+    <script>
     document.addEventListener('DOMContentLoaded', function() {
         function updateWaitTimes() {
             const timeElements = document.querySelectorAll('.wait-time[data-timestamp]');
